@@ -23,12 +23,24 @@ struct thrpool_internal {
 	struct thrpool_task *task_rear;
 };
 
+static void _thrpool_worker_cleanup(void * param)
+{
+	struct thrpool_internal *ti;
+
+	ti = (struct thrpool_internal *)param;
+	pthread_mutex_lock(&ti->worker_m);
+	ti->running_workers--;
+	pthread_mutex_unlock(&ti->worker_m);
+	pthread_cond_signal(&ti->worker_c);
+}
+
 static void *_thrpool_worker(void *param)
 {
 	struct thrpool_internal *ti;
 	struct thrpool_task *t;
 	
 	ti = (struct thrpool_internal *)param;
+	pthread_cleanup_push(_thrpool_worker_cleanup, ti);
 	for (;;) {
 		t = NULL;
 		pthread_mutex_lock(&ti->task_m);
@@ -53,10 +65,7 @@ static void *_thrpool_worker(void *param)
 		t->taskfn(t->param);
 		free(t);
 	}
-	pthread_mutex_lock(&ti->worker_m);
-	ti->running_workers--;
-	pthread_mutex_unlock(&ti->worker_m);
-	pthread_cond_signal(&ti->worker_c);
+	pthread_cleanup_pop(1);
 	return NULL;
 }
 
