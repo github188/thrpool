@@ -9,4 +9,4 @@ void thrpool_destroy(thrpool_t pool, int wait);
 int thrpool_add_task(thrpool_t pool, thrpool_taskfn taskfn, void *param);
 void thrpool_wait(thrpool_t pool);
 
-#endif // !_THRPOOL_H_
+#endif /* !_THRPOOL_H_ */
