@@ -80,7 +80,7 @@ thrpool_t thrpool_create(int workers)
 		return NULL;
 	}
 	ti = (struct thrpool_internal *)malloc(sizeof(struct thrpool_internal));
-	bzero(ti, sizeof(struct thrpool_internal));
+	memset(ti, 0, sizeof(struct thrpool_internal));
 	ti->min_workers = workers;
 	pthread_cond_init(&ti->worker_c, NULL);
 	pthread_mutex_init(&ti->worker_m, NULL);
