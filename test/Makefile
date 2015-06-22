@@ -1,7 +1,7 @@
 CC=gcc
 CFLAGS=-pthread -I.. -Wall
 
-SOURCE=task.c wait.c
+SOURCE=task.c wait.c redo.c
 TARGET=$(SOURCE:%.c=%)
 
 .PHONY: all clean

@@ -23,7 +23,7 @@ struct thrpool_internal {
 	struct thrpool_task *task_rear;
 };
 
-static void _thrpool_worker_cleanup(void * param)
+static void _worker_cleanup(void * param)
 {
 	struct thrpool_internal *ti;
 
@@ -34,13 +34,26 @@ static void _thrpool_worker_cleanup(void * param)
 	pthread_cond_signal(&ti->worker_c);
 }
 
-static void *_thrpool_worker(void *param)
+static void _task_enq(struct thrpool_internal *ti, struct thrpool_task *t)
+{
+	pthread_mutex_lock(&ti->task_m);
+	if (ti->task_front == NULL) {
+		ti->task_front = t;
+	} else {
+		ti->task_rear->next = t;
+	}
+	ti->task_rear = t;
+	pthread_mutex_unlock(&ti->task_m);
+	pthread_cond_signal(&ti->task_c);
+}
+
+static void *_worker(void *param)
 {
 	struct thrpool_internal *ti;
 	struct thrpool_task *t;
 	
 	ti = (struct thrpool_internal *)param;
-	pthread_cleanup_push(_thrpool_worker_cleanup, ti);
+	pthread_cleanup_push(_worker_cleanup, ti);
 	for (;;) {
 		t = NULL;
 		pthread_mutex_lock(&ti->task_m);
@@ -62,8 +75,12 @@ static void *_thrpool_worker(void *param)
 		if (t == NULL) {
 			break;
 		}
-		t->taskfn(t->param);
-		free(t);
+		if (t->taskfn(t->param)) {
+			t->next = NULL;
+			_task_enq(ti, t);
+		} else {
+			free(t);
+		}
 	}
 	pthread_cleanup_pop(1);
 	return NULL;
@@ -89,7 +106,7 @@ thrpool_t thrpool_create(int workers)
 	pthread_mutex_init(&ti->task_m, NULL);
 	r = 0;
 	for (i = 0; i < workers; i++) {
-		if (pthread_create(&t, NULL, _thrpool_worker, ti) != 0) {
+		if (pthread_create(&t, NULL, _worker, ti) != 0) {
 			r = 1;
 			break;
 		}
@@ -158,15 +175,7 @@ int thrpool_add_task(thrpool_t pool, thrpool_taskfn taskfn, void *param)
 	t->taskfn = taskfn;
 	t->param = param;
 	t->next = NULL;
-	pthread_mutex_lock(&ti->task_m);
-	if (ti->task_front == NULL) {
-		ti->task_front = t;
-	} else {
-		ti->task_rear->next = t;
-	}
-	ti->task_rear = t;
-	pthread_mutex_unlock(&ti->task_m);
-	pthread_cond_signal(&ti->task_c);
+	_task_enq(ti, t);
 	return 0;
 }
 

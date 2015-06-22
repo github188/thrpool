@@ -2,7 +2,7 @@
 #define _THRPOOL_H_
 
 typedef void *thrpool_t;
-typedef void (*thrpool_taskfn)(void *param);
+typedef int (*thrpool_taskfn)(void *param);
 
 thrpool_t thrpool_create(int workers);
 void thrpool_destroy(thrpool_t pool, int wait);
